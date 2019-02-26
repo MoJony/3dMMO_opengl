@@ -117,6 +117,7 @@ def cube():
 
 def main():
     pygame.init()
+    cancer = False
 
     display = (800, 600)
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL | RESIZABLE)
@@ -239,6 +240,10 @@ def main():
         glLoadIdentity()
 
         glTranslatef(tx, ty, tz)
+
+        if cancer == False:
+            glRotatef(-57.295779513082320876798154814105,0,0,1)
+            cancer = True
 
 
         glRotatef(rx * MOUSE_SENSEITIVITY, 1, 0, 0)

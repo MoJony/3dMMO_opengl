@@ -1,19 +1,10 @@
-import sys
-import math
-import random
-import time
+import pygame
+from pygame.locals import *
 
-import pyglet
-from collections import deque
-from pyglet import image
-from pyglet.gl import *
-from pyglet.graphics import TextureGroup
-from pyglet.window import key, mouse
+from OpenGL.GL import *
+from OpenGL.GLU import *
 
-import pyglet.gl as pgl
-from camera import FirstPersonCamera   # mojo
 
-TICKS_PER_SEC = 1
 
 vertices = (
     (1, -1, -1),
@@ -21,9 +12,9 @@ vertices = (
     (-1, 1, -1),
     (-1, -1, -1),
     (1, -1, 1),
-    (1, 1, 1),
+    (1, 1, 1, ),
     (-1, -1, 1),
-    (-1, 1, 1)
+    (-1, 1, 1),
     )
 
 edges = (
@@ -38,22 +29,7 @@ edges = (
     (6,7),
     (5,1),
     (5,4),
-    (5,7)
-    )
-
-colors = (  # R,G,B
-    (1,0,0),
-    (0,1,0),
-    (0,0,1),
-    (0,1,0),
-    (1,1,1),
-    (0,1,1),
-    (1,0,0),
-    (0,1,0),
-    (0,0,1),
-    (1,0,0),
-    (1,1,1),
-    (0,1,1),
+    (5,7),
     )
 
 surfaces = (
@@ -62,45 +38,110 @@ surfaces = (
     (6,7,5,4),
     (4,5,1,0),
     (1,5,7,2),
-    (4,0,3,6)
+    (4,0,3,6),
     )
 
+colors = (
+    (1,1,1),
+    (0,0,0),
+    (0,1,1),
+    (0,0,0),
+    (0,1,1),
+    (1,0,1),
+    (0,0,0),
+    (1,1,1),
+    (0,0,0),
+    (0,1,1),
+    )
 
-def triangle():
-    glBegin(GL_LINES)
-    # create a line, x,y,z
-    glVertex3f(100.0, 100.0, 0.25)
-    glVertex3f(200.0, 300.0, -0.75)
+def Cube():
+    glBegin(GL_QUADS)
+
+
+    for surface in surfaces:
+        x = 0
+
+        for vertex in surface:
+            x += 1
+            glColor3fv(colors[x])
+            glVertex3fv(vertices[vertex])
+
+
     glEnd()
 
-def cube():
-    # creating the cubes
     glBegin(GL_LINES)
     for edge in edges:
         for vertex in edge:
-            g = vertices[vertex]
-            #v = prim.vertex[vidx]
-            #glVertex3fv((GLfloat * 3)(*g))
-            pyglet.gl.glVertex3fv((GLfloat * 3)(*g))
+            glVertex3fv(vertices[vertex])
+
     glEnd()
-    # coloring
-    # glBegin(GL_QUADS)
-    # for surface in surfaces:
-    #     for vertex in surface:
-    #         glColor3fv(colors[0])  # can use other colors in the colors list sticking to red for now
-    #         glVertex3fv(vertices[vertex])
-    # glEnd()
 
 
 def main():
-    window = pyglet.window.Window(width=800, height=600, caption='Pyglet', resizable=True)
-    # Hide the mouse cursor and prevent the mouse from leaving the window.
-    triangle()
-    #camera = FirstPersonCamera(window)
-    #camera.update(1)
-    #window.set_exclusive_mouse(True)
-    pyglet.app.run()
-    #main()
+    tx = 0
+    ty = 0
+    tz = 0
+    ry = 0
 
-if __name__ == '__main__':
-    main()
+    glMatrixMode(GL_PROJECTION)
+    gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
+
+    view_mat = IdentityMat44()
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    glTranslatef(0, 0, -5)
+    glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
+    glLoadIdentity()
+
+    while True:
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_a:
+                    tx = 0.1
+                elif event.key == pygame.K_d:
+                    tx = -0.1
+                elif event.key == pygame.K_w:
+                    tz = 0.1
+                elif event.key == pygame.K_s:
+                    tz = -0.1
+                elif event.key == pygame.K_RIGHT:
+                    ry = 1.0
+                elif event.key == pygame.K_LEFT:
+                    ry = -1.0
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_a and tx > 0:
+                    tx = 0
+                elif event.key == pygame.K_d and tx < 0:
+                    tx = 0
+                elif event.key == pygame.K_w and tz > 0:
+                    tz = 0
+                elif event.key == pygame.K_s and tz < 0:
+                    tz = 0
+                elif event.key == pygame.K_RIGHT and ry > 0:
+                    ry = 0.0
+                elif event.key == pygame.K_LEFT and ry < 0:
+                    ry = 0.0
+
+        glPushMatrix()
+        glLoadIdentity()
+        glTranslatef(tx, ty, tz)
+        glRotatef(ry, 0, 1, 0)
+        glMultMatrixf(view_mat)
+
+        glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        Cube()
+        glPopMatrix()
+
+        pygame.display.flip()
+        pygame.time.wait(10)
+main()
