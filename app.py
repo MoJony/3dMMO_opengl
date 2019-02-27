@@ -2,6 +2,11 @@ from __future__ import division
 import pygame, math, numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
+import random
+
+circle_movment = [5, 0.1, 0.1]  # radius, x ,y
+
+monster = [0,0,0]
 
 vertices = (
     (1, -1, -1),
@@ -56,10 +61,10 @@ surfaces = (
 ground_surfaces = (0,1,2,3)
 
 ground_vertices = (
-    (-100,-1,100),
-    (100,-1,100),
-    (100,-1,-100),
-    (-100,-1,-100),
+    (-1000,-1,1000),
+    (1000,-1,1000),
+    (1000,-1,-1000),
+    (-1000,-1,-1000),
     )
 
 
@@ -80,7 +85,44 @@ def ground():
     glEnd()
 
 
-def cube():
+def cube_vertice_location(x,y,z):
+    location = (
+        (1 + x, -1 + y, -1 + z),
+        (1 + x, 1 + y, -1 + z),
+        (-1 + x, 1 + y, -1 + z),
+        (-1 + x, -1 + y, -1 + z),
+        (1 + x, -1 + y, 1 + z),
+        (1 + x, 1 + y, 1 + z),
+        (-1 + x, -1 + y, 1 + z),
+        (-1 + x, 1 + y, 1 + z)
+    )
+    return location
+
+
+def circle_move():
+    """
+    increese x slowly and affect y as a result using the circle formula to have fluid monster movement
+    doest work yet - maybe do ML for movement TBD
+    """
+    circle_movment[2] = (circle_movment[0]**2)/(circle_movment[1]**2)
+    circle_movment[2] = math.sqrt(circle_movment[2])
+    circle_movment[1] += 0.1
+    if circle_movment[1] > 100:
+        circle_movment[1] = 0.1
+    pass
+
+
+def move_monster():
+    """
+    move the monster randomly - proof of concept oh how a player would move (just not randomly like this)
+    """
+    circle_move()
+    # monster[0] += random.uniform(-0.1,0.1)
+    # monster[2] += random.uniform(-0.1,0.1)
+    cube(cube_vertice_location(circle_movment[1], monster[1], circle_movment[2]))
+
+
+def cube(location):
     """
     make a cube
     TODO: make the function make cubes with a given postion?
@@ -90,15 +132,15 @@ def cube():
     glBegin(GL_LINES)
     for edge in edges:
         for vertex in edge:
-            g = vertices[vertex]
-            glVertex3fv(vertices[vertex])
+            g = location[vertex]
+            glVertex3fv(location[vertex])
     glEnd()
     # coloring
     glBegin(GL_QUADS)
     for surface in surfaces:
         for vertex in surface:
             glColor3fv(colors[0])  # can use other colors in the colors list sticking to red for now
-            glVertex3fv(vertices[vertex])
+            glVertex3fv(location[vertex])
     glEnd()
 
 
@@ -211,10 +253,15 @@ fps = Player(w=800, h=600, fov=75)
 pygame.event.set_grab(True)
 pygame.mouse.set_visible(False)
 fps.simple_camera_pose()
-
+x = random.sample(range(1, 100), 10)
+z = random.sample(range(1, 100), 10)
+glClearColor(0, 1, 1, 0.0)
 while fps.loop():
-    #fps.draw_simple_cube()
-    cube()
+    # fps.draw_simple_cube()  # draw 1 cube
+    for x1, z1 in zip(x, z):  # draw several cubes depending on the random range (just to give perspective)
+        loc = cube_vertice_location(x1, 0, z1)
+        cube(loc)
+    move_monster()
     ground()
     glEnable(GL_DEPTH_TEST)
     fps.controls_3d('w', 's', 'a', 'd')
