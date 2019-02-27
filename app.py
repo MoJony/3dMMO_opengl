@@ -1,16 +1,7 @@
-import pygame
-from pygame.locals import *
-
+from __future__ import division
+import pygame, math, numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
-import numpy
-import random
-
-from gl_camera import FirstPersonCamera
-#  ----------------------------
-#  stuff for openGL
-
-MOUSE_SENSEITIVITY = 0.1
 
 vertices = (
     (1, -1, -1),
@@ -65,28 +56,19 @@ surfaces = (
 ground_surfaces = (0,1,2,3)
 
 ground_vertices = (
-    (-10,-0.1,50),
-    (10,-0.1,50),
-    (-10,-0.1,-300),
-    (10,-0.1,-300),
-
+    (-100,-1,100),
+    (100,-1,100),
+    (100,-1,-100),
+    (-100,-1,-100),
     )
 
 
-#  -------------
-
-# def goto(x, y, z, pitch, yaw, roll):
-#     glMatrixMode(GL_MODELVIEW)
-#
-#     glLoadIdentity()
-#     glRotatef(pitch,1,0,0)
-#     glRotatef(yaw,0,1,0)
-#     glRotatef(roll,0,0,1)
-#     glTranslatef(-x,-y,-z)
-
-
 def ground():
-
+    """
+    make the ground of the world
+    :return:
+    """
+    #glEnable(GL_DEPTH_TEST)
     glBegin(GL_QUADS)
 
     x = 0
@@ -99,7 +81,12 @@ def ground():
 
 
 def cube():
-    # creating the cubes
+    """
+    make a cube
+    TODO: make the function make cubes with a given postion?
+    :return:
+    """
+    # glEnable(GL_DEPTH_TEST)
     glBegin(GL_LINES)
     for edge in edges:
         for vertex in edge:
@@ -115,156 +102,120 @@ def cube():
     glEnd()
 
 
-def main():
-    pygame.init()
-    cancer = False
+class Player:
+    """
+    object - player pretty much everything a player in the game will be
+    holds: postion + TBD
+    """
+    def __init__(self, w=800, h=600, fov=75):
+        pygame.init()
+        pygame.display.set_mode((800, 600), pygame.OPENGL | \
+                                pygame.DOUBLEBUF)
+        glMatrixMode(GL_PROJECTION)
+        aspect = w / h
+        gluPerspective(fov, aspect, 0.001, 100000.0);
+        glMatrixMode(GL_MODELVIEW)
+        self.player_x, self.player_y, self.player_z = 0, 0, 0
+        # self.player_mat = glGetDoublev(GL_MODELVIEW_MATRIX).flatten()
+        self.GRAVITY = 0.1
+        self.JUMP = 1
 
-    display = (800, 600)
-    pygame.display.set_mode(display, DOUBLEBUF | OPENGL | RESIZABLE)
-    pygame.event.set_grab(True)
-    pygame.mouse.set_visible(False)
+    def simple_lights(self):
+        """
+        puts lights in the world... havnt fully understood how it works but quite cool
+        TBD: if to use
+        :return:
+        """
+        glEnable(GL_LIGHTING)
+        glShadeModel(GL_SMOOTH)
+        glEnable(GL_LIGHT0)
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.9, 0.45, 0.0, 1.0))
+        glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 10.0, 10.0, 10.0))
+        glEnable(GL_DEPTH_TEST)
+        glDepthFunc(GL_LEQUAL)
 
-    tx = 0  # ffff
-    ty = 0
-    tz = 0
-    ry = 0
-    rx = 0
-    so_broken = 0
-    so_broken_sum = 0
+    def simple_camera_pose(self):
+        """
+        Pre-position the camera (optional)
+        """
+        glMatrixMode(GL_MODELVIEW)
+        glLoadMatrixf(numpy.array([0.741, -0.365, 0.563, 0, 0, 0.839, 0.544,
+                                   0, -0.671, -0.403, 0.622, 0, -0.649, 1.72, -4.05, 1]))
 
-    glMatrixMode(GL_PROJECTION)
-    gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
-
-    def IdentityMat44():
-        return numpy.matrix(numpy.identity(4), copy=False, dtype='float32')
-
-    view_mat = IdentityMat44()
-    glMatrixMode(GL_MODELVIEW)
-    glLoadIdentity()
-    glTranslatef(0, 0, -5)
-    glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
-    glLoadIdentity()
-
-
-
-    #glRotatef(0, 0, 1, 0)
-    #glRotatef(0, 1, 0, 0)
-
-    #cam = FirstPersonCamera()
-    #input_handler = cam.InputHandler()
-
-    mousepos = pygame.mouse.get_pos()
-    new_mouse_pos = pygame.mouse.get_pos()
-
-    while True:  # game loop
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    quit()
-                if event.key == pygame.K_a:
-                    tx = 0.1
-                elif event.key == pygame.K_d:
-                    tx = -0.1
-                elif event.key == pygame.K_w:
-                    tz = 0.1
-                elif event.key == pygame.K_s:
-                    tz = -0.1
-                elif event.key == pygame.K_LEFT:
-                    so_broken = -0.1 + so_broken
-                elif event.key == pygame.K_RIGHT:
-                    so_broken = 0.1 + so_broken
-                # elif event.key == pygame.K_RIGHT:
-                #     ry = 1.0
-                # elif event.key == pygame.K_LEFT:
-                #     ry = -1.0
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_a and tx > 0:
-                    tx = 0
-                elif event.key == pygame.K_d and tx < 0:
-                    tx = 0
-                elif event.key == pygame.K_w and tz > 0:
-                    tz = 0
-                elif event.key == pygame.K_s and tz < 0:
-                    tz = 0
-                elif event.key == pygame.K_LEFT:
-                    so_broken = 0
-                elif event.key == pygame.K_RIGHT:
-                    so_broken = 0
-                # elif event.key == pygame.K_RIGHT and ry > 0:
-                #     ry = 0.0
-                # elif event.key == pygame.K_LEFT and ry < 0:
-                #     ry = 0.0
-
-            if event.type == pygame.MOUSEMOTION:
-                mousepos = new_mouse_pos
-                #mousepos = pygame.mouse.get_rel()
-                new_mouse_pos = pygame.mouse.get_pos()
-                ry = new_mouse_pos[0] - mousepos[0]
-                ry = ry * -1
-                rx = new_mouse_pos[1] - mousepos[1]
-                rx = rx * -1
-                pygame.mouse.set_pos(400, 300)
-                mousepos = (400,300)
-                pygame.mouse.get_rel()
-                print(ry)
-                #print(mousepos, ' / ', new_mouse_pos)   # mojo
-                #input_handler.on_mouse_motion(mousepos[0],mousepos[1],new_mouse_pos[0],new_mouse_pos[1])
-
-                #glRotatef(25,new_mouse_pos[0], new_mouse_pos[1], 0)  # Mojo broken as fuckkkkk !!!
-
-
-            '''
-                        if event.type == pygame.MOUSEBUTTONDOWN:
-                            if event.button == 4:
-                                glTranslatef(0,0,1.0)
-
-                            if event.button == 5:
-                                glTranslatef(0,0,-1.0)
-            '''
-
-        # x = glGetDoublev(GL_MODELVIEW_MATRIX)
-        # camera_x = x[3][0]
-        # camera_y = x[3][1]
-        # camera_z = x[3][2]
-        # #glRotatef(1, 0, 2, 0)
-        # #glRotatef(2, 0, 1, 0)
-        # glTranslatef(x_move, y_move, 0)
-        #glRotate(1, 0, 2, 0)
-
-        glPushMatrix()
-        glLoadIdentity()
-
-        glTranslatef(tx, ty, tz)
-
-        if cancer == False:
-            glRotatef(-57.295779513082320876798154814105,0,0,1)
-            cancer = True
-
-
-        glRotatef(rx * MOUSE_SENSEITIVITY, 1, 0, 0)
-
-        glRotatef(ry * MOUSE_SENSEITIVITY, 0, 1, 0)
-
-
-        so_broken_sum = so_broken_sum + so_broken  # mojo MoJo broken
-        print(so_broken_sum)
-        #glRotatef(so_broken, 0, 0, 1)
-
-
-        ry = 0
-        glMultMatrixf(view_mat)
-
-        glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        cube()
-        ground()
-        glPopMatrix()
-
+    def loop(self):
+        """
+        update the screen and game events
+        :return: true for a loop
+        """
         pygame.display.flip()
-        pygame.time.wait(10)
+        pygame.event.pump()
+        self.keys = dict((chr(i), int(v)) for i, v in \
+                         enumerate(pygame.key.get_pressed()) if i < 256)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        return True
+
+    def controls_3d(self, w_key='w', s_key='s', a_key='a', d_key='d'):
+        """
+
+        def controls_3d(self, mouse_button=1, w_key='w', s_key='s', space_key = 'space' , a_key='a', \
+                    d_key='d'):
+
+        The actual camera setting cycle
+        """
+
+        mouse_dx, mouse_dy = pygame.mouse.get_rel()
+
+        mouse_pos = pygame.mouse.get_pos()
+        if mouse_pos[0] == 800:
+            pygame.mouse.set_pos(1,mouse_pos[1])
+        elif mouse_pos[0] == 0:
+            pygame.mouse.set_pos((799,mouse_pos[1]))
+        elif mouse_pos[1] == 600:
+            pygame.mouse.set_pos((1,mouse_pos[1]))
+        elif mouse_pos[1] == 0:
+            pygame.mouse.set_pos((599,mouse_pos[1]))
+
+        look_speed = .2
+        buffer = glGetDoublev(GL_MODELVIEW_MATRIX)
+        c = (-1 * numpy.mat(buffer[:3, :3]) * \
+             numpy.mat(buffer[3, :3]).T).reshape(3, 1)
+        # c is camera center in absolute coordinates,
+        # we need to move it back to (0,0,0)
+        # before rotating the camera
+        glTranslate(c[0], c[1], c[2])
+        m = buffer.flatten()
+        glRotate(mouse_dx * look_speed, m[1], m[5], m[9])
+        glRotate(mouse_dy * look_speed, m[0], m[4], m[8])
+
+        # compensate roll
+        glRotated(-math.atan2(-m[4], m[5]) * \
+                  57.295779513082320876798154814105, m[2], m[6], m[10])
+        glTranslate(-c[0], -c[1], -c[2])
+
+        # move forward-back or right-left
+        # fwd =   .1 if 'w' is pressed;   -0.1 if 's'
+
+        fwd = .1 * (self.keys[w_key] - self.keys[s_key])
+        strafe = .1 * (self.keys[a_key] - self.keys[d_key])
+        if abs(fwd) or abs(strafe):
+            m = glGetDoublev(GL_MODELVIEW_MATRIX).flatten()
+
+            glTranslate(fwd * m[2], 0.0, fwd * m[10])  #  ^ "flying" aim up and press forward > go up
+            glTranslate(strafe * m[0], strafe * m[4], strafe * m[8])  # mojo - keep this shit
+
+        pygame.mouse.get_rel()
+
+
+fps = Player(w=800, h=600, fov=75)
+#fps.simple_lights()
+pygame.event.set_grab(True)
+pygame.mouse.set_visible(False)
+fps.simple_camera_pose()
+
+while fps.loop():
+    #fps.draw_simple_cube()
+    cube()
+    ground()
+    glEnable(GL_DEPTH_TEST)
+    fps.controls_3d('w', 's', 'a', 'd')
+    if fps.keys['q']: break

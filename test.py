@@ -1,20 +1,27 @@
-import sys
-import math
+import pygame
+from pygame.locals import *
+
+import glm
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import numpy
+import transformations
+from transformations import quaternion_matrix
+from transformations import quaternion_matrix
+
+import pyquaternion
+#from pyquaternion import Quaternion
+
 import random
-import time
+from math import *
+import math
+#from ZMath import *
 
-import pyglet
-from collections import deque
-from pyglet import image
-from pyglet.gl import *
-from pyglet.graphics import TextureGroup
-from pyglet.window import key, mouse
+from gl_camera import FirstPersonCamera
+#  ----------------------------
+#  stuff for openGL
 
-import pyglet.gl as pgl
-from camera import FirstPersonCamera   # mojo
-
-
-TICKS_PER_SEC = 1
+MOUSE_SENSEITIVITY = 0.1
 
 vertices = (
     (1, -1, -1),
@@ -66,12 +73,39 @@ surfaces = (
     (4,0,3,6)
     )
 
-def triangle():
+ground_surfaces = (0,1,2,3)
 
-    glBegin(GL_LINES)
-    # create a line, x,y,z
-    glVertex3f(100.0, 100.0, 0.25)
-    glVertex3f(200.0, 300.0, -0.75)
+ground_vertices = (
+    (-10,-0.1,50),
+    (10,-0.1,50),
+    (-10,-0.1,-300),
+    (10,-0.1,-300),
+
+    )
+
+
+#  -------------
+
+# def goto(x, y, z, pitch, yaw, roll):
+#     glMatrixMode(GL_MODELVIEW)
+#
+#     glLoadIdentity()
+#     glRotatef(pitch,1,0,0)
+#     glRotatef(yaw,0,1,0)
+#     glRotatef(roll,0,0,1)
+#     glTranslatef(-x,-y,-z)
+
+
+def ground():
+
+    glBegin(GL_QUADS)
+
+    x = 0
+    for vertex in ground_vertices:
+        x += 1
+        glColor3fv((0, 1, 0))  # green
+        glVertex3fv(vertex)
+
     glEnd()
 
 
@@ -81,184 +115,236 @@ def cube():
     for edge in edges:
         for vertex in edge:
             g = vertices[vertex]
-            #v = prim.vertex[vidx]
-            #glVertex3fv((GLfloat * 3)(*g))
-            pyglet.gl.glVertex3fv((GLfloat * 3)(*g))
+            glVertex3fv(vertices[vertex])
     glEnd()
     # coloring
-    # glBegin(GL_QUADS)
-    # for surface in surfaces:
-    #     for vertex in surface:
-    #         glColor3fv(colors[0])  # can use other colors in the colors list sticking to red for now
-    #         glVertex3fv(vertices[vertex])
-    # glEnd()
+    glBegin(GL_QUADS)
+    for surface in surfaces:
+        for vertex in surface:
+            glColor3fv(colors[0])  # can use other colors in the colors list sticking to red for now
+            glVertex3fv(vertices[vertex])
+    glEnd()
 
+def camera():
+    pass
+    pitch = Quaternion(radians(self.pitchAngle), glm.vec3(1, 0, 0))
+    yaw = Quaternion(radians(self.yawAngle), glm.vec3(0, 1, 0))
+    roll = Quaternion(radians(self.rollAngle), glm.vec3(0, 0, 1))
 
-class Window(pyglet.window.Window):
+    quat = pitch * yaw * roll
 
-    def __init__(self, *args, **kwargs):
-        super(Window, self).__init__(*args, **kwargs)
+    # glRotated(degrees(quat.x), 1.0, 0.0, 0.0);
+    # glRotated(degrees(quat.y), 0.0, 1.0, 0.0);
+    # glRotated(degrees(quat.z), 0.0, 0.0, 1.0);
 
-        # Whether or not the window exclusively captures the mouse.
-        self.exclusive = False
+    viewMatrix = quat.toMatrix()
+    glMultMatrixf(viewMatrix)
 
-        # When flying gravity has no effect and speed is increased.
-        self.flying = False
+    quat = yaw * pitch * roll
+    mat = quat.toMatrix()
 
-        # Strafing is moving lateral to the direction you are facing,
-        # e.g. moving to the left or right while continuing to face forward.
-        #
-        # First element is -1 when moving forward, 1 when moving back, and 0
-        # otherwise. The second element is -1 when moving left, 1 when moving
-        # right, and 0 otherwise.
-        self.strafe = [0, 0]
+    strafeVector.x = mat[0][0]
+    strafeVector.y = mat[0][1]
+    strafeVector.z = mat[0][2]
 
-        # Current (x, y, z) position in the world, specified with floats. Note
-        # that, perhaps unlike in math class, the y-axis is the vertical axis.
-        self.position = (0, 0, 0)
+    forwardVector.x = mat[2][0]
+    forwardVector.y = mat[2][1]
+    forwardVector.z = mat[2][2]
 
-        # First element is rotation of the player in the x-z plane (ground
-        # plane) measured from the z-axis down. The second is the rotation
-        # angle from the ground plane up. Rotation is in degrees.
-        #
-        # The vertical plane rotation ranges from -90 (looking straight down) to
-        # 90 (looking straight up). The horizontal rotation range is unbounded.
-        self.rotation = (0, 0)
+    # self.upVector.x = mat[1][0]
+    # self.upVector.y = mat[1][1]
+    # self.upVector.z = mat[1][2]
+    upVector.y = 1
 
-        # Which sector the player is currently in.
-        self.sector = None
+    strafeVector *= self.strafe
+    forwardVector *= self.forward
+    upVector *= self.up
 
-        # The crosshairs at the center of the screen.
-        self.reticle = None
+    position += forwardVector + strafeVector + upVector
+    # self.position.z = -self.position.z
 
-        # Velocity in the y (upward) direction.
-        self.dy = 0
-
-        # Instance of the model that handles the world.
-        #self.model = Model()
-
-        # The label that is displayed in the top left of the canvas.
-        self.label = pyglet.text.Label('', font_name='Arial', font_size=18,
-                                       x=10, y=self.height - 10, anchor_x='left', anchor_y='top',
-                                       color=(0, 0, 0, 255))
-
-        # This call schedules the `update()` method to be called
-        # TICKS_PER_SEC. This is the main game event loop.
-        pyglet.clock.schedule_interval(self.update, 1.0 / TICKS_PER_SEC)
-
-    def set_exclusive_mouse(self, exclusive):
-        """ If `exclusive` is True, the game will capture the mouse, if False
-        the game will ignore the mouse.
-        """
-        super(Window, self).set_exclusive_mouse(exclusive)
-        self.exclusive = exclusive
-
-    def get_sight_vector(self):
-        """ Returns the current line of sight vector indicating the direction
-        the player is looking.
-        """
-        x, y = self.rotation
-        # y ranges from -90 to 90, or -pi/2 to pi/2, so m ranges from 0 to 1 and
-        # is 1 when looking ahead parallel to the ground and 0 when looking
-        # straight up or down.
-        m = math.cos(math.radians(y))
-        # dy ranges from -1 to 1 and is -1 when looking straight down and 1 when
-        # looking straight up.
-        dy = math.sin(math.radians(y))
-        dx = math.cos(math.radians(x - 90)) * m
-        dz = math.sin(math.radians(x - 90)) * m
-        return (dx, dy, dz)
-
-    def update(self, dt):
-        """ This method is scheduled to be called repeatedly by the pyglet
-        clock.
-        Parameters
-        ----------
-        dt : float
-            The change in time since the last call.
-        """
-        pass
-
-    def set_2d(self):
-        """ Configure OpenGL to draw in 2d.
-        """
-        pass
-        width, height = self.get_size()
-        glDisable(GL_DEPTH_TEST)
-        glViewport(0, 0, width, height)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(0, width, 0, height, -1, 1)
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-
-    def set_3d(self):
-        """ Configure OpenGL to draw in 3d.
-        """
-        width, height = self.get_size()
-        glEnable(GL_DEPTH_TEST)
-        #glViewport(0, 0, width, height)  # ?
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        #gluPerspective(65.0, width / float(height), 0.1, 60.0)
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        #x, y = self.rotation
-        #glRotatef(x, 0, 1, 0)
-        #glRotatef(-y, math.cos(math.radians(x)), 0, math.sin(math.radians(x)))
-        #x, y, z = self.position
-        #glTranslatef(-x, -y, -z)
-
-    def on_draw(self):
-        """ Called by pyglet to draw the canvas.
-        """
-        self.clear()
-        self.set_3d()
-        glColor3d(1, 1, 1)
-        #self.model.batch.draw()
-        #self.draw_focused_block()
-        self.set_2d()
-        #self.draw_label()
-        #self.draw_reticle()
-
-    def draw_label(self):
-        """ Draw the label in the top left of the screen.
-        """
-        x, y, z = self.position
-        self.label.text = '%02d (%.2f, %.2f, %.2f) %d / %d' % (
-            pyglet.clock.get_fps(), x, y, z,
-            len(self.model._shown), len(self.model.world))
-        self.label.draw()
-
-
-def setup():
-    """ Basic OpenGL configuration.
-    """
-    # Set the color of "clear", i.e. the sky, in rgba.
-    glClearColor(0.5, 0.69, 1.0, 1)
-    # Enable culling (not rendering) of back-facing facets -- facets that aren't
-    # visible to you.
-    glEnable(GL_CULL_FACE)
-    triangle()
-
-    #pyglet.gl.glTranslatef(-2, -2, -2)  # mojo dafuq
-    # Set the texture minification/magnification function to GL_NEAREST (nearest
-    # in Manhattan distance) to the specified texture coordinates. GL_NEAREST
-    # "is generally faster than GL_LINEAR, but it can produce textured images
-    # with sharper edges because the transition between texture elements is not
-    # as smooth."
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    glTranslatef(-position.x, -position.y, position.z)
 
 
 def main():
-    window = pyglet.window.Window(width=800, height=600, caption='Pyglet', resizable=True)
-    # Hide the mouse cursor and prevent the mouse from leaving the window.
-    camera = FirstPersonCamera(window)
-    camera.update(1)
-    window.set_exclusive_mouse(True)
-    setup()
-    pyglet.app.run()
+    pygame.init()
 
-if __name__ == '__main__':
-    main()
+    display = (800, 600)
+    pygame.display.set_mode(display, DOUBLEBUF | OPENGL | RESIZABLE)
+    pygame.event.set_grab(True)
+    pygame.mouse.set_visible(False)
+
+    tx = 0  # ffff
+    ty = 0
+    tz = 0
+    ry = 0
+    rx = 0
+    so_broken = 0
+    so_broken_sum = 0
+
+    glMatrixMode(GL_PROJECTION)
+    gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
+
+    def IdentityMat44():
+        return numpy.matrix(numpy.identity(4), copy=False, dtype='float32')
+
+    view_mat = IdentityMat44()
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    glTranslatef(0, 0, -5)
+    glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
+    glLoadIdentity()
+
+
+
+    #glRotatef(0, 0, 1, 0)
+    #glRotatef(0, 1, 0, 0)
+
+    #cam = FirstPersonCamera()
+    #input_handler = cam.InputHandler()
+
+    mousepos = pygame.mouse.get_pos()
+    new_mouse_pos = pygame.mouse.get_pos()
+
+    while True:  # game loop
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_a:
+                    tx = 0.1
+                elif event.key == pygame.K_d:
+                    tx = -0.1
+                elif event.key == pygame.K_w:
+                    tz = 0.1
+                elif event.key == pygame.K_s:
+                    tz = -0.1
+                elif event.key == pygame.K_LEFT:
+                    so_broken = -0.1 + so_broken
+                elif event.key == pygame.K_RIGHT:
+                    so_broken = 0.1 + so_broken
+                # elif event.key == pygame.K_RIGHT:
+                #     ry = 1.0
+                # elif event.key == pygame.K_LEFT:
+                #     ry = -1.0
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_a and tx > 0:
+                    tx = 0
+                elif event.key == pygame.K_d and tx < 0:
+                    tx = 0
+                elif event.key == pygame.K_w and tz > 0:
+                    tz = 0
+                elif event.key == pygame.K_s and tz < 0:
+                    tz = 0
+                elif event.key == pygame.K_LEFT:
+                    so_broken = 0
+                elif event.key == pygame.K_RIGHT:
+                    so_broken = 0
+                # elif event.key == pygame.K_RIGHT and ry > 0:
+                #     ry = 0.0
+                # elif event.key == pygame.K_LEFT and ry < 0:
+                #     ry = 0.0
+
+            if event.type == pygame.MOUSEMOTION:
+                mousepos = new_mouse_pos
+                #mousepos = pygame.mouse.get_rel()
+                new_mouse_pos = pygame.mouse.get_pos()
+                ry = new_mouse_pos[0] - mousepos[0]
+                ry = ry * -1
+                rx = new_mouse_pos[1] - mousepos[1]
+                rx = rx * -1
+                pygame.mouse.set_pos(400, 300)
+                mousepos = (400,300)
+                pygame.mouse.get_rel()
+                print(ry)
+                #print(mousepos, ' / ', new_mouse_pos)   # mojo
+                #input_handler.on_mouse_motion(mousepos[0],mousepos[1],new_mouse_pos[0],new_mouse_pos[1])
+
+                #glRotatef(25,new_mouse_pos[0], new_mouse_pos[1], 0)  # Mojo broken as fuckkkkk !!!
+
+
+            '''
+                        if event.type == pygame.MOUSEBUTTONDOWN:
+                            if event.button == 4:
+                                glTranslatef(0,0,1.0)
+
+                            if event.button == 5:
+                                glTranslatef(0,0,-1.0)
+            '''
+
+        # x = glGetDoublev(GL_MODELVIEW_MATRIX)
+        # camera_x = x[3][0]
+        # camera_y = x[3][1]
+        # camera_z = x[3][2]
+        # #glRotatef(1, 0, 2, 0)
+        # #glRotatef(2, 0, 1, 0)
+        # glTranslatef(x_move, y_move, 0)
+        #glRotate(1, 0, 2, 0)
+
+        glPushMatrix()
+        glLoadIdentity()
+
+        glTranslatef(tx, ty, tz)
+
+        # pitch = Quaternion(radians(rx * MOUSE_SENSEITIVITY), glm.vec3(1, 0, 0))
+        # yaw = Quaternion(radians(ry * MOUSE_SENSEITIVITY), glm.vec3(0, 1, 0))
+        # roll = Quaternion(0, glm.vec3(0, 0, 1))
+
+        # pitch = glm.quat(radians(rx * MOUSE_SENSEITIVITY), glm.vec3(1, 0, 0))
+        # yaw = glm.quat(radians(ry * MOUSE_SENSEITIVITY), glm.vec3(0, 1, 0))
+        # roll = glm.quat(0, glm.vec3(0, 0, 1))
+
+        # quat = yaw * pitch * roll
+
+        # viewMatrix = glm.translate(quat,glm.mat4)
+        #viewMatrix = quat.toMatrix()
+        # glMultMatrixf(viewMatrix)
+        #mat = quat.toMatrix()
+
+        #glRotated(degrees(quat.x), 1.0, 0.0, 0.0);
+        #glRotated(degrees(quat.y), 0.0, 1.0, 0.0);
+        #glRotated(degrees(quat.z), 0.0, 0.0, 1.0);
+
+        #glRotatef(rx * MOUSE_SENSEITIVITY, 1, 0, 0)
+
+        #glRotatef(ry * MOUSE_SENSEITIVITY, 0, 1, 0)
+
+        buffer = glGetDoublev(GL_MODELVIEW_MATRIX)
+        c = (-1 * numpy.mat(buffer[:3, :3]) * \
+             numpy.mat(buffer[3, :3]).T).reshape(3, 1)
+        # c is camera center in absolute coordinates,
+        # we need to move it back to (0,0,0)
+        # before rotating the camera
+        glTranslate(c[0], c[1], c[2])
+        m = buffer.flatten()
+        glRotate(rx * MOUSE_SENSEITIVITY, m[1], m[5], m[9])
+        glRotate(ry * MOUSE_SENSEITIVITY, m[0], m[4], m[8])
+
+        # compensate roll
+        glRotated(-math.atan2(-m[4], m[5]) * \
+                  57.295779513082320876798154814105, m[2], m[6], m[10])
+        #glTranslate(-c[0], -c[1], -c[2])
+
+
+        so_broken_sum = so_broken_sum + so_broken  # mojo MoJo broken
+        print(so_broken_sum)
+        #glRotatef(so_broken, 0, 0, 1)
+
+
+        ry = 0
+        glMultMatrixf(view_mat)
+
+        glGetFloatv(GL_MODELVIEW_MATRIX, view_mat)
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        cube()
+        ground()
+        glPopMatrix()
+
+        pygame.display.flip()
+        pygame.time.wait(10)
