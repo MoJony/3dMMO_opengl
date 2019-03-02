@@ -1,79 +1,48 @@
-from flask import Flask
-from flask_restful import Api, Resource, reqparse
+from flask import Flask, request, json
+import json
+"""
+will be using SQLlight later on right now.................... not :)
+"""
 
+
+class Player:
+
+    def __init__(self, player_id, data):
+        self.id = player_id
+        self.data = data
+
+
+id_counter = 0  # giving id's to peoplez
+players = []  # list O' players to show MP works... database later.jpg
 app = Flask(__name__)
-api = Api(app)
-
-users = [
-    {
-        "name": "Nicholas",
-        "age": 42,
-        "occupation": "Network Engineer"
-    },
-    {
-        "name": "Elvin",
-        "age": 32,
-        "occupation": "Doctor"
-    },
-    {
-        "name": "Jass",
-        "age": 22,
-        "occupation": "Web Developer"
-    }
-]
 
 
-class User(Resource):
-    def get(self, name):
-        for user in users:
-            if (name == user["name"]):
-                return user, 200
-        return "User not found", 404
-
-    def post(self, name):
-        parser = reqparse.RequestParser()
-        parser.add_argument("age")
-        parser.add_argument("occupation")
-        args = parser.parse_args()
-
-        for user in users:
-            if (name == user["name"]):
-                return "User with name {} already exists".format(name), 400
-
-        user = {
-            "name": name,
-            "age": args["age"],
-            "occupation": args["occupation"]
-        }
-        users.append(user)
-        return user, 201
-
-    def put(self, name):
-        parser = reqparse.RequestParser()
-        parser.add_argument("age")
-        parser.add_argument("occupation")
-        args = parser.parse_args()
-
-        for user in users:
-            if (name == user["name"]):
-                user["age"] = args["age"]
-                user["occupation"] = args["occupation"]
-                return user, 200
-
-        user = {
-            "name": name,
-            "age": args["age"],
-            "occupation": args["occupation"]
-        }
-        users.append(user)
-        return user, 201
-
-    def delete(self, name):
-        global users
-        users = [user for user in users if user["name"] != name]
-        return "{} is deleted.".format(name), 200
+@app.route("/player", methods=['POST'])
+def player_post():
+    global id_counter
+    if request.headers['Content-Type'] == 'application/json':
+        data = json.loads(request.data)
+        players.append(Player(id_counter, data))
+        id_counter += 1
+        return 'OK', 200, id_counter - 1
+    else:
+        return "Unsupported Media Type", 415
 
 
-api.add_resource(User, "/user/<string:name>")
+@app.route("/player", methods=['GET'])
+def player_get():
+    if request.headers['Content-Type'] == 'application/json':
+        data = json.loads(request.data)
+        print(data)
+        current_id = data['id']
+        player = next((x for x in players if x.id == current_id), None)
+        if player is not None:
+            return json.dumps(player.__dict__)
+        else:
+            return 'player not existo ok', 200
+    else:
+        return "Unsupported Media Type", 415
 
-app.run(debug=True)
+
+if __name__ == '__main__':
+    app.run(debug = True)

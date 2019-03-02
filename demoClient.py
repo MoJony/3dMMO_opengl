@@ -1,17 +1,18 @@
 import requests
 import json
 
-base_url = 'http://localhost:5000/api/add'
+base_url = 'http://localhost:5000/player'
 headers = {"Content-Type": "application/json"}
-payload = json.dumps({"name": "shaun", "country": "australia", "age": 24})
+payload = json.dumps({"name": "shaun", "country": "not_country", "id": 0})
 payload2 = json.dumps({"country": "new zealand"})
 
-requests.post(base_url, headers=headers, data=payload)
+re = requests.post(base_url, headers=headers, data=payload)
+print(re.content)
 data = json.dumps({"country": "dd"})
 # g = requests.put('http://localhost:5000/api/update/1',  data=payload2, headers=headers)
-g = requests.put('http://localhost:5000/api/update/1', json={"country": "new zealand"})
+g = requests.get(base_url, headers=headers, data=payload)
 print(g.content)
 print('dd')
 
-r = requests.get('http://localhost:5000/api/list',headers=headers)
-print(r.content)
+# r = requests.get('http://localhost:5000/api/list',headers=headers)
+# print(r.content)

@@ -3,8 +3,14 @@ import pygame, math, numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import random
+import requests
+import json
 
 circle_movment = [5, 0.1, 0.1]  # radius, x ,y
+
+base_url = 'http://localhost:5000/player'
+headers = {"Content-Type": "application/json"}
+payload = json.dumps({"name": "shaun", "country": "not_country", "id": 0})
 
 monster = [0,0,0]
 
