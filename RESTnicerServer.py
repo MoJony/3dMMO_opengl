@@ -43,19 +43,36 @@ def player_get():
     """
     if request.headers['Content-Type'] == 'application/json':
         data = json.loads(request.data)
-        current_id = data['id']
+        current_id = int(data['id'])
         if current_id == 'all':
             data = json.dumps([ob.__dict__ for ob in players])
             return data
         else:
             player = next((x for x in players if x.id == current_id), None)
-            data = json.dumps(player.__dict__)
+            print(player, 'gersgdsfrgdf', current_id)
         if player is not None:
-            return data
+            return json.dumps(player.__dict__)
         else:
             return 'player not existo ok', 200
     else:
         return "Unsupported Media Type", 415
+
+
+@app.route("/player", methods=['PUT'])
+def player_put():
+    """
+    update the data of the given player (id given in the json)
+    :return: ok or error if player doesnt exist
+    """
+    if request.headers['Content-Type'] == 'application/json':
+        data = json.loads(request.data)
+        current_id = data['id']
+        player = next((x for x in players if x.id == current_id), None)
+        if player is None:
+            return 'player not existo ok', 200
+        else:
+            player.data = data
+            return 'OK', 200
 
 
 if __name__ == '__main__':

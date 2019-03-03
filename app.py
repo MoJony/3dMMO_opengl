@@ -167,7 +167,8 @@ class Player:
         # self.player_mat = glGetDoublev(GL_MODELVIEW_MATRIX).flatten()
         self.GRAVITY = 0.1
         self.JUMP = 1
-        self.id = requests.post(base_url, headers=headers, data=json.dumps({"name": "Johnny", "location": [0, 0, 0]}))
+        re = requests.post(base_url, headers=headers, data=json.dumps({"name": "Johnny", "location": [0, 0, 0]}))
+        self.id = re.content['id']
 
     def simple_lights(self):
         """
@@ -182,6 +183,9 @@ class Player:
         glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 10.0, 10.0, 10.0))
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
+
+    def update_player(self):
+
 
     def simple_camera_pose(self):
         """
