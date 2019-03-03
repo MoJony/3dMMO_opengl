@@ -167,6 +167,7 @@ class Player:
         # self.player_mat = glGetDoublev(GL_MODELVIEW_MATRIX).flatten()
         self.GRAVITY = 0.1
         self.JUMP = 1
+        self.id = requests.post(base_url, headers=headers, data=json.dumps({"name": "Johnny", "location": [0, 0, 0]}))
 
     def simple_lights(self):
         """
