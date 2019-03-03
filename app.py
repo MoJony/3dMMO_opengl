@@ -167,8 +167,9 @@ class Player:
         # self.player_mat = glGetDoublev(GL_MODELVIEW_MATRIX).flatten()
         self.GRAVITY = 0.1
         self.JUMP = 1
-        re = requests.post(base_url, headers=headers, data=json.dumps({"name": "Johnny", "location": [0, 0, 0]}))
-        self.id = re.content['id']
+        re = requests.post(base_url, headers=headers, data=json.dumps({"name": "Johnny", 'id': 'None', "location": [0, 0, 0]}))
+        d = json.loads(re.content)
+        self.id = d['id']
 
     def simple_lights(self):
         """
@@ -185,7 +186,28 @@ class Player:
         glDepthFunc(GL_LEQUAL)
 
     def update_player(self):
+        """
+        update this player's information in the server currently : name, id and location
+        :return:
+        TODO: same as update_other_players
+        """
+        req = requests.put(base_url, headers=headers, data=json.dumps({"name": "Johnny", 'id': str(self.id), "location": [self.player_x, self.player_y, self.player_z]}))
 
+    def update_other_players(self):
+        """
+        retrive from the server all of the players get their location translate it to a shape (currently a cube) and
+        draw
+        TODO: actually get the location, requires math i am not going to do at 4 am :)
+        :return:
+        """
+        req = requests.get(base_url, headers=headers, data=json.dump({'id': all}))
+        data = json.loads(req.content)
+        locations = []
+        for player in data:
+            loc = cube_vertice_location(player['locations'][0], player['locations'][1], player['locations'][2])
+            locations.append(loc)
+        for loc in locations:
+            cube(loc)
 
     def simple_camera_pose(self):
         """

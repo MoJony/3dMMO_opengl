@@ -43,11 +43,12 @@ def player_get():
     """
     if request.headers['Content-Type'] == 'application/json':
         data = json.loads(request.data)
-        current_id = int(data['id'])
+        current_id = data['id']
         if current_id == 'all':
             data = json.dumps([ob.__dict__ for ob in players])
             return data
         else:
+            current_id = int(data['id'])
             player = next((x for x in players if x.id == current_id), None)
             print(player, 'gersgdsfrgdf', current_id)
         if player is not None:
